@@ -14,8 +14,6 @@ class OpenClipTextModel(EmbeddingModel):
     def __init__(self, model_id: str, use_jit: bool, device):
         self.device = device
         logger.info("booting up model")
-        print(model_id)
-        print(OPEN_CLIP_MODEL_MAP[model_id])
         model, _, _ = open_clip.create_model_and_transforms(
             model_id, pretrained=OPEN_CLIP_MODEL_MAP[model_id], jit=use_jit
         )
@@ -34,7 +32,7 @@ class OpenClipTextModel(EmbeddingModel):
                     self.model.encode_text(warmup_text)
 
     def prepare(self, value: Any):
-        return self.tokenizer([value])[0]
+        return self.tokenizer([value])
 
     def embed(self, value: List[Any]):
         with torch.no_grad():

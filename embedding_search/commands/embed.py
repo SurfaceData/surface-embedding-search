@@ -19,7 +19,7 @@ class DownloadedDataset(WebDataset):
         WebDataset.__init__(self, [str(path) for path in input_dir.glob("*.tar")])
 
         def decoder(value):
-            return model.prepare(value.decode("utf-8"))
+            return model.prepare(value.decode("utf-8"))[0]
 
         self.decode(handle_extension(".txt", decoder)).to_tuple("txt", "json")
 
