@@ -24,44 +24,6 @@ class DownloadedDataset(WebDataset):
         self.decode(handle_extension(".txt", decoder)).to_tuple("txt", "json")
 
 
-class TSVDataset(Dataset):
-    def __init__(self, input_file: Path, model: EmbeddingModel):
-        self.model = model
-        df = pd.read_csv(
-            str(input_file),
-            sep="\t",
-            usecols=[
-                "photo_id",
-                "photo_description",
-                "ai_description",
-                "photo_image_url",
-            ],
-        )
-        df = df.rename(
-            columns={
-                "photo_id": "id",
-                "photo_description": "description",
-                "ai_description": "caption",
-                "photo_image_url": "url",
-            }
-        )
-        df["caption"] = df["caption"].fillna("")
-        df["description"] = df["description"].fillna("")
-        df["json"] = df.apply(lambda x: x.to_json(), axis=1)
-        self.df = df
-
-    def __len__(self):
-        return len(self.df)
-
-    def __getitem__(self, row_id):
-        row = self.df.iloc[row_id]
-
-        caption = row["caption"]
-        tokenized = self.model.prepare(caption)
-        metadata = row["json"]
-        return tokenized, metadata
-
-
 class ShardedOutputWriter:
     def __init__(self, output_dir: Path, shard_limit: int = 64):
         self.shard_limit = shard_limit
@@ -113,11 +75,10 @@ class ShardedOutputWriter:
 def embed(
     input_dir: Path,
     output_dir: Path,
-    dataset: str = "downloaded",
     device: str = "cuda",
     model_id: str = "coca_ViT-B-32",
-    batch_size: int = 8,
-    shard_limit: int = 5,
+    batch_size: int = 32,
+    shard_limit: int = 100_000,
 ):
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -125,12 +86,8 @@ def embed(
 
     model = OpenClipTextModel(model_id, False, device)
 
-    if dataset == "downloaded":
-        data = DownloadedDataset(input_dir, model).batched(batch_size)
-        loader = DataLoader(data, batch_size=None, shuffle=False)
-    else:
-        data = TSVDataset(input_dir, model)
-        loader = DataLoader(data, batch_size=batch_size, shuffle=False)
+    data = DownloadedDataset(input_dir, model).batched(batch_size)
+    loader = DataLoader(data, batch_size=None, shuffle=False)
     for step, (tokenized, metadatas) in tqdm(enumerate(loader)):
         embeddings = model.embed(tokenized)
         output_writer(embeddings, metadatas)
