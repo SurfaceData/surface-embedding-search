@@ -33,7 +33,8 @@ def search(query: str, numResults: int = 32) -> SearchResult:
     prepared_text = model.prepare(query)
     embedding = model.embed(prepared_text)
     _, indices, _ = index.search_and_reconstruct(embedding, 32)
+    metadata = metadata_store.get(indices[0].tolist())
+    items = [SearchItem(fields=m) for m in metadata]
 
-    items = []
-    total = 0
+    total = len(metadata)
     return SearchResult(items=items, total=total)
